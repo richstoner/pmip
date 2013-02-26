@@ -1,0 +1,20 @@
+filename = getArgument();
+filecomponents = split(filename,".");
+filebase = filecomponents[0];
+
+print(filename);
+
+open(filename);
+
+// generate high contrast 
+run("Find Edges");
+run("Find Edges");
+run("8-bit");
+
+// normalize
+run("Enhance Contrast", "saturated=50 normalize equalize");
+
+// blur
+run("Gaussian Blur...", "sigma=1.5");
+
+saveAs("jpg", filebase +"-contrast.jpg");
