@@ -14,6 +14,7 @@ class Processing(object):
         self.dirs['spec'] =  os.path.join(self.basedir, 'specimens', self.specimen)
         self.dirs['raw'] =  os.path.join(self.dirs['spec'], 'raw')
         self.dirs['log'] = os.path.join(self.dirs['spec'], 'log')
+        self.dirs['video'] = os.path.join(self.dirs['spec'], 'video')
         self.dirs['regsource'] = os.path.join(self.dirs['spec'], 'register_source')
         self.dirs['regtarget'] = os.path.join(self.dirs['spec'], 'register_target')
         self.dirs['points'] = os.path.join(self.dirs['spec'], 'points')
@@ -99,11 +100,25 @@ class Processing(object):
                         #print(e)
                         pass
 
-                    print 'created: %s' % expected_out
+                    #print 'created: %s' % expected_out
                 else:
-                    print 'exists : %s' % expected_out
+                    #print 'exists : %s' % expected_out
+                    pass
 
-            
+             
+
+    def createFrames(self):
+        import glob
+
+        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx4-c.jpg'))
+        dscImageList.sort()
+
+        import shutil
+
+        for n, dsc in enumerate(dscImageList):
+            frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], n)
+            shutil.copy(dsc, frameName)
+
 
 
 

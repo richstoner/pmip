@@ -284,9 +284,10 @@ class api(object):
             outputname = '%s/%s-%s-DSx%d.jpg' % (_path, img.tag, img.metadata['id'], ds)
             if not os.path.exists(outputname) or redownload:
                 urllib.urlretrieve(dsurl, outputname)
-                print 'downloaded: %s to %s' % (dsurl, outputname)
+                #print 'downloaded: %s to %s' % (dsurl, outputname)
             else:
-                print 'exists  : %s' % (outputname)
+                #print 'exists  : %s' % (outputname)
+                pass
 
     
 
