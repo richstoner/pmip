@@ -6,8 +6,9 @@ class Processing(object):
     """docstring for Processing"""
 
     def __init__(self, _specimen):
-        self.specimen = _specimen
+        self.specimen = _specimen.replace('.', '_')
         self.basedir = '/mnt/reconstruction'
+        self.scriptBaseDir = '/home/ubuntu/pmip/fijiscript/'
 
         self.dirs = {}
         self.dirs['spec'] =  os.path.join(self.basedir, 'specimens', self.specimen)
@@ -63,8 +64,53 @@ class Processing(object):
         import aibs
         reload(aibs)
         api = aibs.api()
+        
+        # download downsampled images
         api.getDSImagesFromListToPath(imageList, self.dirs['raw'])
 
+        # get list of ds images
+        import glob 
+        dsImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx4.jpg'))
+        dsImageList.sort()
+
+        # generate contrast image
+        self._executeFIJIScript('REG-filter.jim', dsImageList)                    
+
+
+    def _executeFIJIScript(self, scriptName, fileInput, force=False):
+        ''' takes the imagej script name and an array of file inputs'''
+        import os
+
+        fijiCommandString = '/home/ubuntu/external/Fiji.app/fiji-linux64 -Xms10000m -batch %s %s'        
+
+        if not os.path.exists(os.path.join(self.scriptBaseDir,scriptName)):
+            print('Script %s not found' % scriptName)
+            return
+        else:
+            print('%s - Script found, continue' % scriptName)
+            for f_to_proc in fileInput:           
+
+                expected_out = f_to_proc.split('.')[0] + '-c.jpg'
+                if not os.path.exists(expected_out) or force:
+                    commandToRun = fijiCommandString % (os.path.join(os.path.abspath(self.scriptBaseDir), scriptName), f_to_proc)
+                    #print(commandToRun)
+                    pipe = os.popen(commandToRun)
+                    for e in pipe:
+                        #print(e)
+                        pass
+
+                    print 'created: %s' % expected_out
+                else:
+                    print 'exists : %s' % expected_out
+
+            
+
+
+
+    def clearRawDirectory(self):
+        ''' deletes all files downloaded to or copied to the raw directory '''
+        import os
+        os.popen('sudo rm -rvf %s/*' % self.dirs['raw'])
 
 
 

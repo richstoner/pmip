@@ -274,8 +274,7 @@ class api(object):
 
 
         for si in sectionList:
-
-            tag = '%s-%03d' % (series_id, si['section_number'])
+            tag = '%03d-%s' % (si['section_number'], series_id)
 
             s = SectionImage(tag)
             s.metadata = si
@@ -286,20 +285,27 @@ class api(object):
         return list_to_return
 
 
-    def getDSImagesFromListToPath(self, imageList, _path):
-        import urllib
+    def getDSImagesFromListToPath(self, imageList, _path, ds=4, redownload=False):
+        import urllib, os
 
         for img in imageList:
-            
-            dsurl =  img.generateDownSampleURL(4)
-            outputname = '%s/%s-%s.jpg' % (_path, img.tag, img.metadata['id'])
-            print outputname 
+            dsurl =  img.generateDownSampleURL(ds)
+            outputname = '%s/%s-%s-DSx%d.jpg' % (_path, img.tag, img.metadata['id'], ds)
+            if not os.path.exists(outputname) or redownload:
+                urllib.urlretrieve(dsurl, outputname)
+                print 'downloaded: %s to %s' % (dsurl, outputname)
+            else:
+                print 'exists  : %s' % (outputname)
+
     
+
+
+
     #    rawImageList.append(outputname)
     
 #    if not os.path.exists(outputname):
     
- #       urllib.urlretrieve(downsampledImageURL, outputname)
+ #       
         
 
 
