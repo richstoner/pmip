@@ -128,19 +128,47 @@ class Processing(object):
         import glob
         files_to_use = glob.glob(self.dirs['regsource'] + '/*.jpg')
         
-        print(len(files_to_use))
+        #print(len(files_to_use))
         first_file = '%s/frame0000.jpg' % (self.dirs['regsource'])
         first_reg_file = '%s/register0000.jpg' % (self.dirs['regtarget'])
         cmdstr ='cp -v %s %s' % (first_file, first_reg_file)
         pipe = os.popen(cmdstr, 'r')
         for e in pipe:
-            print(e)
+            pass
+         #   print(e)
             
         cmdstr = '/home/ubuntu/pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 3' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
-        print cmdstr
+        #print cmdstr
         pipe = os.popen(cmdstr, 'r')
         for e in pipe:
-            print(e)
+            #print(e)
+            pass
+
+    def generateSummaryTable(self):
+        import glob
+
+        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx5.jpg'))
+        dscImageList.sort()
+
+        htmlString = ''
+
+        for n,dsc in enumerate(dscImageList):
+            htmlString += '<div>'
+            basename = dsc.split('.')[0].replace('/mnt/', 'files/')
+
+            normal = '<img style="width: 200px; margin:3px;" src="%s.jpg"/>' % basename
+            contrast = '<img style="width: 200px; margin:3px;" src="%s-c.jpg"/>' % basename
+            reg = '<img style="width: 200px; margin:3px;" src="%s/register%04d.jpg"/>' % (self.dirs['regtarget'].replace('/mnt/', 'files/'), n)
+
+            (basename.replace('raw', 'register_target'), n)
+            
+            htmlString += normal
+            htmlString += contrast
+            htmlString += reg
+            htmlString += "</div>"
+
+        return htmlString
+
 
     def clearRawDirectory(self):
         ''' deletes all files downloaded to or copied to the raw directory '''
