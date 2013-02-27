@@ -6,8 +6,13 @@ class SectionImage(object):
     def __init__(self, _tag):
         self.tag =  _tag
         self.metadata = {}
-        self.thumbnailURL = ''
         self.section_number = -1
+
+        # not really sure how to break these up
+        self.TILE_baseURL = '''http://human.brain-map.org/tiles//'''
+        self.TILE_thumbnail = '''/TileGroup/0-0-0.jpg'''
+        self.API_imageServiceBase = '''http://api.brain-map.org/cgi-bin/imageservice?path='''
+
         #print 'Initialized as SectionImage (tag: %s)' % (self.tag)
 
     def __str__(self):
@@ -16,6 +21,30 @@ class SectionImage(object):
     def __repr__(self):
         return '%s - [ %s x %s ]' % (self.tag, self.metadata['width'], self.metadata['height'])
         
+
+    def generateThumbnailURL(self):
+        returnStr = self.TILE_baseURL + self.metadata['path'] + self.TILE_thumbnail
+        returnStr += '?siTop=' + self.metadata['y']
+        returnStr += '&siLeft=' + self.metadata['x']
+        returnStr += '&siWidth=' + self.metadata['width']
+        returnStr += '&siHeight=' + self.metadata['height']
+        return returnStr
+
+    
+    def generateDownSampleURL(self, downsample):
+        import math
+        returnStr = self.API_imageServiceBase + self.metadata['path']
+        returnStr += '&top=' + str(int(self.metadata['y'] / math.pow(2,downsample))) 
+        returnStr += '&left=' + str(int(self.metadata['x'] / math.pow(2,downsample))) 
+        returnStr += '&width=' + str(int(self.metadata['width'] / math.pow(2,downsample))) 
+        returnStr += '&height=' + str(int(self.metadata['height'] / math.pow(2,downsample))) 
+        returnStr += '&downsample=' + str(downsample)
+        return returnStr
+
+
+
+
+
 
 class Specimen(object):
     ''' the generic AIBS specimen object'''
@@ -125,7 +154,7 @@ class Specimen(object):
 
     def getSortedImageList(self):
         import operator
-        list_to_sort = e.sectionImageList
+        list_to_sort = self.sectionImageList
         list_to_sort.sort(key=operator.attrgetter('section_number'))
         return list_to_sort
 
@@ -256,6 +285,22 @@ class api(object):
 
         return list_to_return
 
+
+    def getDSImagesFromListToPath(self, imageList, _path):
+        import urllib
+
+        for img in imageList:
+            
+            dsurl =  img.generateDownSampleURL(4)
+            outputname = '%s/%s-%s.jpg' % (_path, img.tag, img.metadata['id'])
+            print outputname 
+    
+    #    rawImageList.append(outputname)
+    
+#    if not os.path.exists(outputname):
+    
+ #       urllib.urlretrieve(downsampledImageURL, outputname)
+        
 
 
         #print 'found %d sectionImages' % len(sectionList['section_images'])
