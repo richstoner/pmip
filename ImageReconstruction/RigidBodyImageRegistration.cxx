@@ -101,13 +101,13 @@ public:
         
         transformLog.close(); 
 */        
-        // std::cout << optimizer->GetCurrentIteration() << "\t";
-        // std::cout << optimizer->GetValue() << "\t";
-        // std::cout << optimizer->GetCurrentPosition() << std::endl;
+        std::cout << optimizer->GetCurrentIteration() << "\t";
+        std::cout << optimizer->GetValue() << "\t";
+        std::cout << optimizer->GetCurrentPosition() << std::endl;
 
         // Print the angle for the trace plot
         //      vnl_matrix<double> p(2, 2);
-        //      p[0][0] = (double) optimizer->GetCurrentPosition()[0];
+             // p[0][0] = (double) optimizer->GetCurrentPosition()[0];
         //      p[0][1] = (double) optimizer->GetCurrentPosition()[1];
         //      p[1][0] = (double) optimizer->GetCurrentPosition()[2];
         //      p[1][1] = (double) optimizer->GetCurrentPosition()[3];
@@ -338,7 +338,7 @@ void RigidBodyRegistration::Execute()
     
     optimizer->SetMaximumStepLength( initialStepLength ); 
     optimizer->SetMinimumStepLength( 0.001 );
-    optimizer->SetNumberOfIterations( 500 );
+    optimizer->SetNumberOfIterations( 50 );
     
     
     // Create the Command observer and register it with the optimizer.

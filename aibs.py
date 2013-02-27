@@ -276,7 +276,7 @@ class api(object):
         return list_to_return
 
 
-    def getDSImagesFromListToPath(self, imageList, _path, ds=4, redownload=False):
+    def getDSImagesFromListToPath(self, imageList, _path, ds=5, redownload=False):
         import urllib, os
 
         for img in imageList:

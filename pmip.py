@@ -71,11 +71,12 @@ class Processing(object):
 
         # get list of ds images
         import glob 
-        dsImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx4.jpg'))
+        dsImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx5.jpg'))
         dsImageList.sort()
 
         # generate contrast image
-        self._executeFIJIScript('REG-filter.jim', dsImageList)                    
+        # self._executeFIJIScript('REG-filter.jim', dsImageList)                    
+        self._executeFIJIScript('REG-filter-red50.jim', dsImageList)                    
 
 
     def _executeFIJIScript(self, scriptName, fileInput, force=False):
@@ -100,9 +101,9 @@ class Processing(object):
                         #print(e)
                         pass
 
-                    #print 'created: %s' % expected_out
+                    print 'created: %s' % expected_out
                 else:
-                    #print 'exists : %s' % expected_out
+                    print 'exists : %s' % expected_out
                     pass
 
              
@@ -110,27 +111,65 @@ class Processing(object):
     def createFrames(self):
         import glob
 
-        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx4-c.jpg'))
+        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx5-c.jpg'))
         dscImageList.sort()
 
         import shutil
 
         for n, dsc in enumerate(dscImageList):
             frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], n)
-            shutil.copy(dsc, frameName)
+            if not os.path.exists(frameName):
+                shutil.copy(dsc, frameName)
 
 
 
+    def register(self):
+
+        import glob
+        files_to_use = glob.glob(self.dirs['regsource'] + '/*.jpg')
+        
+        print(len(files_to_use))
+        first_file = '%s/frame0000.jpg' % (self.dirs['regsource'])
+        first_reg_file = '%s/register0000.jpg' % (self.dirs['regtarget'])
+        cmdstr ='cp -v %s %s' % (first_file, first_reg_file)
+        pipe = os.popen(cmdstr, 'r')
+        for e in pipe:
+            print(e)
+            
+        cmdstr = '/home/ubuntu/pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 3' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
+        print cmdstr
+        pipe = os.popen(cmdstr, 'r')
+        for e in pipe:
+            print(e)
 
     def clearRawDirectory(self):
         ''' deletes all files downloaded to or copied to the raw directory '''
         import os
         os.popen('sudo rm -rvf %s/*' % self.dirs['raw'])
 
+    def clearSubjectDirs(self):
+        ''' deletes all files downloaded to or copied to the raw directory '''
+        import os
+        os.popen('sudo rm -rvf %s/*' % self.dirs['spec'])
+
+        self._buildDirectoryStructure()
 
 
-    def registerFramesForList(self):
-        pass
+    def generateSourceVideo(self):
+
+        cmdstr = '/usr/bin/avconv -f image2 -i %s/frame%%04d.jpg -r 12 -s hd1080 %s/source.mp4' % (self.dirs['regsource'], self.dirs['video'])
+        pipe = os.popen(cmdstr, 'r')
+        for p in pipe:
+            print(p)
+
+    def generateRegisteredVideo(self):
+
+        cmdstr = '/usr/bin/avconv -f image2 -i %s/register%%04d.jpg -r 12 -s hd1080 %s/register.mp4' % (self.dirs['regtarget'], self.dirs['video'])
+        pipe = os.popen(cmdstr, 'r')
+        for p in pipe:
+            print(p)
+
+    
 
 
 
