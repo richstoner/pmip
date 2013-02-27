@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import requests
 
-class Resource(object):
+
+
+
+class oldResource(object):
 
     """docstring foResourcme"""
 
@@ -148,7 +150,7 @@ class Resource(object):
         return gallery_str
 
 
-    def getImageDictForID(self,series_id):
+    def getImageDictForID(self,series_id): 
         dict_to_return = {}
         requestURL = self.API_listOfImages % series_id
         section_images = requests.get(requestURL).json()['msg'][0]['section_images']

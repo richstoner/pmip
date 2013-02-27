@@ -145,11 +145,10 @@ class Specimen(object):
             import aibs
             api = aibs.api()
 
-
             imageList = api.getSectionImagesForID(sds['id'])
-
             self.sectionImageList += imageList
-            
+
+        return self.sectionImageList            
 
 
     def getSortedImageList(self):
@@ -158,14 +157,6 @@ class Specimen(object):
         list_to_sort.sort(key=operator.attrgetter('section_number'))
         return list_to_sort
 
-
-
-
-
-
-
-
-    
 
     def printSpecimenDetails(self):
 
@@ -307,6 +298,9 @@ class api(object):
     
  #       
         
+
+
+
 
 
         #print 'found %d sectionImages' % len(sectionList['section_images'])
