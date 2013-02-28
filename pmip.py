@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
-
+  
 import os
+import workerpool
 
 class Processing(object):
     """docstring for Processing"""
 
     def __init__(self, _specimen):
-        self.specimen = _specimen.replace('.', '_')
+        #self.specimen = _specimen.replace('.', '_')
+
+        self.s = _specimen # sending entire Specimen object
+
+        self.specimen = self.s.subjectName.replace('.', '_')
+
         self.basedir = '/mnt/reconstruction'
         self.scriptBaseDir = '/home/ubuntu/pmip/fijiscript/'
 
@@ -46,10 +52,12 @@ class Processing(object):
             if not os.path.exists(self.dirs[dd]):
                 os.makedirs(self.dirs[dd])
 
-        print 'directorys for %s created' % self.specimen
+        print 'directories for %s created' % self.specimen
 
 
     def initEnv(self): 
+
+        self._printTitle('initEnv')
 
         if self._validateEnvironment():
             print 'environment ready, continuing'
@@ -60,23 +68,74 @@ class Processing(object):
         self._buildDirectoryStructure()
 
 
-    def generateFramesForImageList(self, imageList):
-    
-        import aibs
-        reload(aibs)
-        api = aibs.api()
+    #pe.generateFramesForImageList(e.getSortedImageList())
+
+    def collectRaw(self):
+        self._printTitle('collectRaw, downsample by 2^4')
+        self.collectRawGenerics(4, self.dirs['raw'])        
+
+    def collectLargeRaw(self):
+        self._printTitle('collectRaw, downsample by 2^1')
+        self.collectRawGenerics(1, self.dirs['points'])
+
+    def collectRawGenerics(self, DOWNSAMPLE, _dir):
+
+        if self.s.remoteSpecimen == True:
         
-        # download downsampled images
-        api.getDSImagesFromListToPath(imageList, self.dirs['raw'])
+            print '-> collecting images from remote source'
+            # download downsampled images
+
+            import aibs
+            reload(aibs)
+            api = aibs.api()
+
+            api.getDSImagesFromListToPath(self.s.getSortedImageList(), _dir, downsample=DOWNSAMPLE)
+            # import glob
+            # print glob.glob(_dir + '/*DSx%d.jpg' % DOWNSAMPLE)
+
+        else:
+
+            print '-> collecting images from local source'
+            self.getDSImagesFromLocalToPath(self.s.getSortedImageList(), _dir, downsample=DOWNSAMPLE)
+            # import glob
+            # print glob.glob(_dir + '/*DSx%d.jpg' % DOWNSAMPLE)
+
+
+
+    def createContrast(self):
+
+        self._printTitle('createContrast')
 
         # get list of ds images
         import glob 
-        dsImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx5.jpg'))
+        dsImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx4.jpg'))
         dsImageList.sort()
 
         # generate contrast image
-        # self._executeFIJIScript('REG-filter.jim', dsImageList)                    
-        self._executeFIJIScript('REG-filter-red50.jim', dsImageList)                    
+        self._executeFIJIScript('REG-filter.jim', dsImageList)                    
+        #self._executeFIJIScript('REG-filter-red50.jim', dsImageList)   
+
+
+    def _printTitle(self, title):
+        print ''
+        titlestr = '* ' + title
+        print titlestr
+        print '-'*80
+
+    
+
+
+    def extractPoints(self):
+        self._printTitle('extractPoints')
+
+        # get list of ds images
+        import glob 
+        dsImageList = glob.glob(os.path.join(self.dirs['points'], '*.jpg'))
+        dsImageList.sort()
+
+        #for n, ds in enumerate(dsImageList):
+
+
 
 
     def _executeFIJIScript(self, scriptName, fileInput, force=False):
@@ -108,10 +167,20 @@ class Processing(object):
 
              
 
-    def createFrames(self):
-        import glob
 
-        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx5-c.jpg'))
+    def getDSImagesFromLocalToPath(self, imageList, path, downsample=5):
+
+        for img in imageList:
+            #print img
+            img.generateDownSampleConversion(path, ds=downsample)
+
+
+    def createFrames(self):
+
+        self._printTitle('createFrames')
+
+        import glob
+        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-c.jpg'))
         dscImageList.sort()
 
         import shutil
@@ -121,9 +190,14 @@ class Processing(object):
             if not os.path.exists(frameName):
                 shutil.copy(dsc, frameName)
 
+        # import glob
+        # print glob.glob(self.dirs['regsource'] + '/*.jpg')
+
 
 
     def register(self):
+
+        self._printTitle('register')
 
         import glob
         files_to_use = glob.glob(self.dirs['regsource'] + '/*.jpg')
@@ -158,7 +232,7 @@ class Processing(object):
 
             normal = '<img style="width: 200px; margin:3px;" src="%s.jpg"/>' % basename
             contrast = '<img style="width: 200px; margin:3px;" src="%s-c.jpg"/>' % basename
-            reg = '<img style="width: 200px; margin:3px;" src="%s/register%04d.jpg"/>' % (self.dirs['regtarget'].replace('/mnt/', 'files/'), n)
+            reg =   '<img style="width: 200px; margin:3px;" src="%s/register%04d.jpg"/>' % (self.dirs['regtarget'].replace('/mnt/', 'files/'), n)
 
             (basename.replace('raw', 'register_target'), n)
             
@@ -168,6 +242,9 @@ class Processing(object):
             htmlString += "</div>"
 
         return htmlString
+
+
+    
 
 
     def clearRawDirectory(self):
@@ -187,15 +264,15 @@ class Processing(object):
 
         cmdstr = '/usr/bin/avconv -f image2 -i %s/frame%%04d.jpg -r 12 -s hd1080 %s/source.mp4' % (self.dirs['regsource'], self.dirs['video'])
         pipe = os.popen(cmdstr, 'r')
-        for p in pipe:
-            print(p)
+        # for p in pipe:
+        #     print(p)
 
     def generateRegisteredVideo(self):
 
         cmdstr = '/usr/bin/avconv -f image2 -i %s/register%%04d.jpg -r 12 -s hd1080 %s/register.mp4' % (self.dirs['regtarget'], self.dirs['video'])
         pipe = os.popen(cmdstr, 'r')
-        for p in pipe:
-            print(p)
+        # for p in pipe:
+        #     print(p)
 
     
 

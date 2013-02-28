@@ -818,6 +818,7 @@ int main( int argc, char *argv[] )
     RigidBodyRegistration registration;
     registration.setTransformType(transformType);
     
+    
     outputMoving++;
     
     

@@ -3,17 +3,20 @@
 class SectionImage(object):
     """docstring for SectionImage"""
 
-    def __init__(self, _tag):
-        self.tag =  _tag
+    def __init__(self, _tag, remote=True):
+        self.tag =  _tag # tag corresponds to section number, specimen - experiment
         self.metadata = {}
         self.section_number = -1
+
+        self.remote = remote
+        self.localCacheDir = ''
 
         # not really sure how to break these up
         self.TILE_baseURL = '''http://human.brain-map.org/tiles//'''
         self.TILE_thumbnail = '''/TileGroup/0-0-0.jpg'''
         self.API_imageServiceBase = '''http://api.brain-map.org/cgi-bin/imageservice?path='''
 
-        #print 'Initialized as SectionImage (tag: %s)' % (self.tag)
+        # print 'Initialized as SectionImage (tag: %s)' % (self.tag)
 
     def __str__(self):
         return '%s - [ %s x %s ]' % (self.tag, self.metadata['width'], self.metadata['height'])
@@ -21,7 +24,7 @@ class SectionImage(object):
     def __repr__(self):
         return '%s - [ %s x %s ]' % (self.tag, self.metadata['width'], self.metadata['height'])
         
-
+# useful if remote
     def generateThumbnailURL(self):
         returnStr = self.TILE_baseURL + self.metadata['path'] + self.TILE_thumbnail
         returnStr += '?siTop=' + self.metadata['y']
@@ -30,7 +33,7 @@ class SectionImage(object):
         returnStr += '&siHeight=' + self.metadata['height']
         return returnStr
 
-    
+# useful if remote    
     def generateDownSampleURL(self, downsample):
         import math
         returnStr = self.API_imageServiceBase + self.metadata['path']
@@ -41,6 +44,68 @@ class SectionImage(object):
         returnStr += '&downsample=' + str(downsample)
         return returnStr
 
+#useful if local
+    def generateThumbnailConversion(self):
+
+        if self.remote == True:
+            return
+
+        commandString = '/home/ubuntu/external/kakadu/kdu_expand -i %s' % self.metadata['path']
+
+        return 'this returns the path to the thumbnail'
+
+    def generateDownSampleConversion(self, path, ds=5):
+        import os
+        if self.remote == True:
+            return
+                # cmdstr = '/usr/local/bin/kdu_expand -i %s -o %s.tif -reduce % -region "{%f, 0.0},{%f, 1.0}"' %  (tempkey['file_path'], fullimg, self.upperbound, self.lowerbound)
+    
+        outputname = '%s/%s-DSx%d' % (path, self.tag, ds) #shortened tag 
+        print outputname
+
+        if not os.path.exists(outputname+ '.jpg' ):
+
+            commandString = '/home/ubuntu/external/kakadu/kdu_expand -i %s -o %s.tif -reduce %d' % (self.metadata['path'], outputname, ds)
+            #print commandString
+            p = os.popen(commandString)
+            print(p.read())
+
+            commandString = '/usr/bin/convert %s.tif %s.jpg' % (outputname, outputname)
+            #print commandString
+            p = os.popen(commandString)     
+            print(p.read())
+
+            commandString = 'rm -vrf %s.tif' % (outputname)
+            #print commandString
+            p = os.popen(commandString)     
+            print(p.read())
+
+
+
+        # else:
+        #     print 'exists : %s' % outputname
+
+
+    def getImageDetailsFromJP2(self):
+        ''' populates the image metadata from the jp2 image using kakadu jp2info'''
+
+        if self.remote == True:
+            return
+
+        import os
+        from bs4 import BeautifulSoup
+
+        commandString = '/home/ubuntu/external/kakadu/kdu_jp2info -i %s' % self.metadata['path']
+        p = os.popen(commandString)
+        xmlinfo = BeautifulSoup(p.read())
+        w = int(xmlinfo.find_all('width')[0].string)
+        h = int(xmlinfo.find_all('height')[0].string)
+        
+        self.metadata['width'] = w
+        self.metadata['height'] = h
+
+
+
 
 
 
@@ -49,19 +114,103 @@ class SectionImage(object):
 class Specimen(object):
     ''' the generic AIBS specimen object'''
 
-    def __init__(self, remote=True, subjectName='undefined'):
+    def __init__(self, initdata={},remote=True, subjectName='undefined'):
 
-        self.subjectName = subjectName
-        self.remoteSpecimen = True
+        self.remoteSpecimen = remote
         self.metadata = {}
         self.sectionImageList = []
-
+        self.rawImageList = []
         self.markersOfInterest = []
         self.allMarkers = []
         self.filteredMarkers = []
 
-       # print 'Initialized a new specimen: %s (remote: %s)' % (self.subjectName, str(self.remoteSpecimen))
+        if len(initdata) > 0:
+            self.subjectName = initdata['subjectName'] # tentative
+        else:
+            self.subjectName = subjectName
+        
+        if remote:
+            self.imageLocation = 'api'
 
+        if not remote:
+
+            self.imageLocation = initdata['location']
+
+            import glob
+            self.rawImageList = []
+            allRawImagesInLocation = glob.glob(self.imageLocation + '/*.jp2')
+            for ri in allRawImagesInLocation:
+                if self.subjectName in ri:
+                    self.rawImageList.append(ri)
+
+            print 'found %d images for Subject %s' % (len(self.rawImageList), self.subjectName)
+
+            self._populateFromLocalImages()
+
+
+
+    def _populateFromLocalImages(self):
+
+        self.sectionImageList = []
+
+        if self.remoteSpecimen:
+            print 'not valid'
+            return
+        
+        print 'populating from local file data'
+
+        # look for csv with information? 
+        # 
+        bFoundCSVlut = False
+
+        if bFoundCSVlut:
+            print 'loading from CSV'
+
+        # if no csv, try to extrapolate from file name
+
+        subjectNameList = []
+
+        import os
+        for img in self.rawImageList:
+
+            basename = os.path.splitext(os.path.basename(img))[0].split('_')
+            
+            fields = ['study_id', 'subjectName', 'section_number', 'specimen_id', 'experiment_id', 'ds', 'quality']
+
+            sInfo = {}
+            sInfo['path'] = img
+
+            for n,f in enumerate(fields):
+                if f == 'section_number':
+                    sInfo[fields[n]] = int(basename[n].replace('p', ''))
+                elif f == 'subjectName':
+                    if basename[n] not in subjectNameList:
+                        subjectNameList.append(basename[n])
+
+                else:
+                    sInfo[fields[n]] = basename[n]
+
+            # need to set metadata for image here
+            tag = '%03d-%s' % (sInfo['section_number'], sInfo['specimen_id'])
+            s = SectionImage(tag, remote=False)
+            s.metadata = sInfo
+            s.section_number = sInfo['section_number']
+
+            s.getImageDetailsFromJP2()
+            self.sectionImageList.append(s)
+
+        if len(subjectNameList) > 1:
+            print 'error - multiple subjects found in this list'
+            
+        else:
+        
+            self.subjectName = subjectNameList[0]
+            print 'Setting specimen name to %s' % (self.subjectName)
+
+
+
+        
+            
 
     def getListOfAvailableMarkers(self):
 
@@ -171,7 +320,8 @@ class Specimen(object):
         pprint.pprint(self.sectionImageList)
 
 
-        
+
+
 
 
 
@@ -276,12 +426,13 @@ class api(object):
         return list_to_return
 
 
-    def getDSImagesFromListToPath(self, imageList, _path, ds=5, redownload=False):
+    def getDSImagesFromListToPath(self, imageList, _path, downsample=5, redownload=False):
         import urllib, os
 
         for img in imageList:
-            dsurl =  img.generateDownSampleURL(ds)
-            outputname = '%s/%s-%s-DSx%d.jpg' % (_path, img.tag, img.metadata['id'], ds)
+            dsurl =  img.generateDownSampleURL(downsample)
+            #outputname = '%s/%s-%s-DSx%d.jpg' % (_path, img.tag, img.metadata['id'], ds)
+            outputname = '%s/%s-DSx%d.jpg' % (_path, img.tag, downsample) #shortened tag 
             if not os.path.exists(outputname) or redownload:
                 urllib.urlretrieve(dsurl, outputname)
                 #print 'downloaded: %s to %s' % (dsurl, outputname)
