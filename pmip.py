@@ -112,7 +112,7 @@ class Processing(object):
         dsImageList.sort()
 
         # generate contrast image
-        self._executeFIJIScript('REG-filter.jim', dsImageList)                    
+        self._executeFIJIScript('REG-filter.ijm', dsImageList)                    
         #self._executeFIJIScript('REG-filter-red50.jim', dsImageList)   
 
 
@@ -134,6 +134,8 @@ class Processing(object):
         dsImageList.sort()
 
         #for n, ds in enumerate(dsImageList):
+        self._executeFijiExtract('ColorThresholdWithPointDetection.ijm', dsImageList)                    
+        #self._executeFIJIScript('REG-filter-red50.jim', dsImageList)   
 
 
 
@@ -148,7 +150,9 @@ class Processing(object):
             print('Script %s not found' % scriptName)
             return
         else:
-            print('%s - Script found, continue' % scriptName)
+
+            print('Executing %s on %d files' % (scriptName, len(fileInput)))
+            
             for f_to_proc in fileInput:           
 
                 expected_out = f_to_proc.split('.')[0] + '-c.jpg'
@@ -164,6 +168,37 @@ class Processing(object):
                 else:
                     print 'exists : %s' % expected_out
                     pass
+
+
+
+    def _executeFijiExtract(self, scriptName, fileInput, force=False):
+        ''' takes the imagej script name and an array of file inputs'''
+        import os
+
+        fijiCommandString = '/home/ubuntu/external/Fiji.app/fiji-linux64 -Xms10000m --headless -batch %s %s'        
+
+        if not os.path.exists(os.path.join(self.scriptBaseDir,scriptName)):
+            print('Script %s not found' % scriptName)
+            return
+        else:
+
+            print('Executing %s on %d files' % (scriptName, len(fileInput)))
+            
+            for f_to_proc in fileInput:           
+
+                expected_out = f_to_proc.split('.')[0] + '-c.jpg'
+                if not os.path.exists(expected_out) or force:
+                    commandToRun = fijiCommandString % (os.path.join(os.path.abspath(self.scriptBaseDir), scriptName), f_to_proc)
+                    print(commandToRun)
+                #     pipe = os.popen(commandToRun)
+                #     for e in pipe:
+                #         #print(e)
+                #         pass
+
+                #     print 'created: %s' % expected_out
+                # else:
+                #     print 'exists : %s' % expected_out
+                #     pass
 
              
 
@@ -211,17 +246,17 @@ class Processing(object):
             pass
          #   print(e)
             
-        cmdstr = '/home/ubuntu/pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 3' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
+        cmdstr = '/home/ubuntu/pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 0' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
         #print cmdstr
         pipe = os.popen(cmdstr, 'r')
         for e in pipe:
-            #print(e)
+            print(e)
             pass
 
     def generateSummaryTable(self):
         import glob
 
-        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx5.jpg'))
+        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx4.jpg'))
         dscImageList.sort()
 
         htmlString = ''
