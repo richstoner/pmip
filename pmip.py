@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-  
 import os
 import workerpool
+
 
 class Processing(object):
     """docstring for Processing"""
@@ -9,7 +9,7 @@ class Processing(object):
     def __init__(self, _specimen):
         #self.specimen = _specimen.replace('.', '_')
 
-        self.s = _specimen # sending entire Specimen object
+        self.s = _specimen  # sending entire Specimen object
 
         self.specimen = self.s.subjectName.replace('.', '_')
 
@@ -19,6 +19,7 @@ class Processing(object):
         self.dirs = {}
         self.dirs['spec'] =  os.path.join(self.basedir, 'specimens', self.specimen)
         self.dirs['raw'] =  os.path.join(self.dirs['spec'], 'raw')
+        self.dirs['contrast'] =  os.path.join(self.dirs['spec'], 'contrast')        
         self.dirs['log'] = os.path.join(self.dirs['spec'], 'log')
         self.dirs['video'] = os.path.join(self.dirs['spec'], 'video')
         self.dirs['regsource'] = os.path.join(self.dirs['spec'], 'register_source')
@@ -107,14 +108,60 @@ class Processing(object):
         self._printTitle('createContrast')
 
         # get list of ds images
-        import glob 
-        dsImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx4.jpg'))
+        import glob
+        dsImageList = glob.glob(self.dirs['raw'] + '/*-DSx4.jpg')
         dsImageList.sort()
 
         # generate contrast image
         self._executeFIJIScript('REG-filter.ijm', dsImageList)                    
-        #self._executeFIJIScript('REG-filter-red50.jim', dsImageList)   
 
+        mvcmd = 'mv -v %s %s' %( os.path.join(self.dirs['raw'], '*-DSx4-c.jpg'), self.dirs['contrast'])
+        pipe = os.popen(mvcmd)
+        for p in pipe:
+            print p
+
+    def createContrastUsingSK(self):
+
+        self._printTitle('createContrast')
+
+        # get list of ds images
+        import glob
+        import os
+        dsImageList = glob.glob(self.dirs['raw'] + '/*-DSx4.jpg')
+        dsImageList.sort()
+
+        from scipy import ndimage
+        import scipy.misc
+        import numpy as np
+        import skimage
+        from skimage import color, filter, exposure, transform
+
+        for file_to_use in dsImageList:
+
+        #file_to_use = dsImageList[0]
+        #print file_to_use
+
+            outputname = os.path.join(self.dirs['contrast'], os.path.basename(file_to_use)).replace('.jpg', '-c.jpg')
+
+            if not os.path.exists(outputname):
+
+                image = ndimage.imread(file_to_use)
+                image_gray = skimage.img_as_uint(skimage.color.rgb2gray(image))
+                img_eq = skimage.exposure.equalize_hist(image_gray)
+                elevation = skimage.filter.sobel(img_eq)
+                elevation = ndimage.gaussian_filter(elevation, 5)
+
+                img_to_write = np.zeros((1500,2000))
+                y_offset = round((img_to_write.shape[0] - elevation.shape[0])/2)
+                x_offset = round((img_to_write.shape[1] - elevation.shape[1])/2)        
+
+                img_to_write[y_offset:elevation.shape[0]+y_offset,x_offset:elevation.shape[1] + x_offset] = elevation
+
+                outputname = os.path.join(self.dirs['contrast'], os.path.basename(file_to_use)).replace('.jpg', '-c.jpg')
+
+                img_to_write = skimage.transform.pyramids.pyramid_reduce(img_to_write)
+                scipy.misc.imsave(outputname, img_to_write)
+                
 
     def _printTitle(self, title):
         print ''
@@ -161,7 +208,7 @@ class Processing(object):
                     #print(commandToRun)
                     pipe = os.popen(commandToRun)
                     for e in pipe:
-                        #print(e)
+                        # print(e)
                         pass
 
                     print 'created: %s' % expected_out
@@ -215,7 +262,7 @@ class Processing(object):
         self._printTitle('createFrames')
 
         import glob
-        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-c.jpg'))
+        dscImageList = glob.glob(os.path.join(self.dirs['contrast'], '*-c.jpg'))
         dscImageList.sort()
 
         import shutil
@@ -256,7 +303,7 @@ class Processing(object):
     def generateSummaryTable(self):
         import glob
 
-        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-DSx4.jpg'))
+        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*.jpg'))
         dscImageList.sort()
 
         htmlString = ''
@@ -266,20 +313,23 @@ class Processing(object):
             basename = dsc.split('.')[0].replace('/mnt/', 'files/')
 
             normal = '<img style="width: 200px; margin:3px;" src="%s.jpg"/>' % basename
-            contrast = '<img style="width: 200px; margin:3px;" src="%s-c.jpg"/>' % basename
-            reg =   '<img style="width: 200px; margin:3px;" src="%s/register%04d.jpg"/>' % (self.dirs['regtarget'].replace('/mnt/', 'files/'), n)
-
-            (basename.replace('raw', 'register_target'), n)
+            contrast = '<img style="width: 200px; margin:3px;" src="%s-c.jpg"/>' % (basename.replace('raw', 'contrast'))
+            reg =   '<img style="width: 200px; margin:3px;" src="%s/register%04d.jpg"/>' % (basename.replace('raw', 'register_target'), n)
             
             htmlString += normal
             htmlString += contrast
             htmlString += reg
             htmlString += "</div>"
 
-        return htmlString
+        return htmlString      
 
 
-    
+    def listSubjectDirectory(self):
+        import glob, pprint
+        dirlist = glob.glob(self.dirs['spec'] + '/**')
+        for dl in dirlist:
+            print '[%d files] %s' % (len(glob.glob(dl + '/*')), dl)
+        
 
 
     def clearRawDirectory(self):
