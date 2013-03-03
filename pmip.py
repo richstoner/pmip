@@ -14,7 +14,7 @@ class Processing(object):
         self.specimen = self.s.subjectName.replace('.', '_')
 
         self.basedir = '/mnt/reconstruction'
-        self.scriptBaseDir = '/home/ubuntu/pmip/fijiscript/'
+        self.scriptBaseDir = '/home/ubuntu/ipynb/pmip/fijiscript/'
 
         self.dirs = {}
         self.dirs['spec'] =  os.path.join(self.basedir, 'specimens', self.specimen)
