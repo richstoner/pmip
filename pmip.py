@@ -13,7 +13,7 @@ class Processing(object):
 
         self.specimen = self.s.subjectName.replace('.', '_')
 
-        self.basedir = '/mnt/reconstruction'
+        self.basedir = '/srv/reconstruction'
         self.scriptBaseDir = '/home/ubuntu/ipynb/pmip/fijiscript/'
 
         self.dirs = {}
@@ -32,8 +32,8 @@ class Processing(object):
     def _validateEnvironment(self):
 
         dir_list = []
-        dir_list.append('/mnt/reconstruction')
-        dir_list.append('/mnt/reconstruction/specimens')
+        dir_list.append('/srv/reconstruction')
+        dir_list.append('/srv/reconstruction/specimens')
 
         bReturnVal = True
 
@@ -353,7 +353,7 @@ class Processing(object):
 
         for n,dsc in enumerate(dscImageList):
             htmlString += '<div>'
-            basename = dsc.split('.')[0].replace('/mnt/', 'files/')
+            basename = dsc.split('.')[0].replace('/srv/', 'files/')
 
             normal = '<img style="width: 150px; margin:3px;" src="%s.jpg"/>' % basename
             contrast = '<img style="width: 150px; margin:3px;" src="%s-c.jpg"/>' % (basename.replace('raw', 'contrast'))
