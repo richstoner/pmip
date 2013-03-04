@@ -334,7 +334,7 @@ class Processing(object):
             pass
          #   print(e)
             
-        cmdstr = '/home/ubuntu/pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 0' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
+        cmdstr = '/home/ubuntu/ipynb/ pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 0' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
         #print cmdstr
         pipe = os.popen(cmdstr, 'r')
         for e in pipe:
