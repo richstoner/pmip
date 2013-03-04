@@ -123,6 +123,9 @@ class Specimen(object):
         self.markersOfInterest = []
         self.allMarkers = []
         self.filteredMarkers = []
+        self.localMarkers = []
+        self.localImageList = []
+        self.sectionRange = []
 
         if len(initdata) > 0:
             self.subjectName = initdata['subjectName'] # tentative
@@ -138,19 +141,21 @@ class Specimen(object):
 
             import glob
             self.rawImageList = []
-            allRawImagesInLocation = glob.glob(self.imageLocation + '/*.jp2')
+            allRawImagesInLocation = glob.glob(self.imageLocation + '*/*.jp2')
+            # print allRawImagesInLocation
+
             for ri in allRawImagesInLocation:
                 if self.subjectName in ri:
                     self.rawImageList.append(ri)
 
             print 'found %d images for Subject %s' % (len(self.rawImageList), self.subjectName)
 
-            self._populateFromLocalImages()
+
+    def populateFromLocalImages(self):
 
 
-
-    def _populateFromLocalImages(self):
-
+        self.localMarkers = []
+        self.localImageList = []
         self.sectionImageList = []
 
         if self.remoteSpecimen:
@@ -173,6 +178,11 @@ class Specimen(object):
         import os
         for img in self.rawImageList:
 
+            pathname = os.path.split(img)[0].split('/')[-1].split('_')
+            marker_name = pathname[4]
+
+
+
             basename = os.path.splitext(os.path.basename(img))[0].split('_')
             
             fields = ['study_id', 'subjectName', 'section_number', 'specimen_id', 'experiment_id', 'ds', 'quality']
@@ -183,27 +193,81 @@ class Specimen(object):
             for n,f in enumerate(fields):
                 if f == 'section_number':
                     sInfo[fields[n]] = int(basename[n].replace('p', ''))
+                elif f == 'specimen_id':
+                    sInfo[fields[n]] = int(basename[n].replace('s', '')) 
+                elif f == 'experiment_id':
+                    # actually the barcode
+                    sInfo[fields[n]] = int(basename[n].replace('b', '')) 
                 elif f == 'subjectName':
+
                     if basename[n] not in subjectNameList:
                         subjectNameList.append(basename[n])
 
                 else:
                     sInfo[fields[n]] = basename[n]
 
-            # need to set metadata for image here
-            tag = '%03d-%s' % (sInfo['section_number'], sInfo['specimen_id'])
-            s = SectionImage(tag, remote=False)
-            s.metadata = sInfo
-            s.section_number = sInfo['section_number']
 
-            s.getImageDetailsFromJP2()
-            self.sectionImageList.append(s)
+            if len(self.sectionRange) == 2:
+
+                # need to set metadata for image here
+                tag = '%03d-%s' % (sInfo['section_number'], sInfo['specimen_id'])
+                
+                if sInfo['section_number'] >= self.sectionRange[0] and sInfo['section_number'] <= self.sectionRange[1]:
+
+                    s = SectionImage(tag, remote=False)
+                    s.metadata = sInfo
+                    s.section_number = sInfo['section_number']
+
+                    s.getImageDetailsFromJP2()
+                    self.localImageList.append(s)
+
+                    geneSingle = {}
+                    geneSingle['id'] = sInfo['specimen_id'] # s number
+
+                    if len(pathname) > 5:
+                        geneSingle['type'] = 'ISH'
+                    else:
+                        geneSingle['type'] = 'HIS'
+
+                    geneSingle['name'] = marker_name
+
+                    if geneSingle not in self.localMarkers:
+                        self.localMarkers.append(geneSingle)
+                else:
+                    pass
+                    # print 'section %s not in range %s, skip' % (sInfo['section_number'], self.sectionRange)
+
+            else:
+
+                # need to set metadata for image here
+                tag = '%03d-%s' % (sInfo['section_number'], sInfo['specimen_id'])
+                s = SectionImage(tag, remote=False)
+                s.metadata = sInfo
+                s.section_number = sInfo['section_number']
+
+                s.getImageDetailsFromJP2()
+                self.localImageList.append(s)
+
+                geneSingle = {}
+                geneSingle['id'] = sInfo['specimen_id'] # s number
+
+                if len(pathname) > 5:
+                    geneSingle['type'] = 'ISH'
+                else:
+                    geneSingle['type'] = 'HIS'
+
+                geneSingle['name'] = marker_name
+
+                if geneSingle not in self.localMarkers:
+                    self.localMarkers.append(geneSingle)
+
+
+        print subjectNameList
 
         if len(subjectNameList) > 1:
             print 'error - multiple subjects found in this list'
             
         else:
-        
             self.subjectName = subjectNameList[0]
             print 'Setting specimen name to %s' % (self.subjectName)
 
@@ -238,66 +302,117 @@ class Specimen(object):
     def getMarkerList(self, verbose=True):
         ''' returns marker list, filtered if wanted'''
 
-        details = self.getListOfAvailableMarkers()
-        if type(details) == type(None):
-            if verbose:
-                print 'no markers found'
-            return
+        if self.remoteSpecimen:
 
-        specimenMarkerSet = []
-        specimenFilteredMarkerSet = []
-
-        for ds in details:
-            
-            geneSingle = {}
-            
-            if ds['treatments'][0]['tags'] == 'histology':
+            details = self.getListOfAvailableMarkers()
+            if type(details) == type(None):
                 if verbose:
-                    print '%d - HIS: %s' % (ds['id'], ds['treatments'][0]['name'])
+                    print 'no markers found'
+                return
+
+            specimenMarkerSet = []
+            specimenFilteredMarkerSet = []
+
+            for ds in details:
                 
-                geneSingle['id'] = ds['id']
-                geneSingle['type'] = 'HIS'
-                geneSingle['name'] = ds['treatments'][0]['name']
+                geneSingle = {}
                 
-            elif ds['treatments'][0]['tags'] == 'In Situ Hybridization histology':
-                
-                for gene in ds['genes']:
+                if ds['treatments'][0]['tags'] == 'histology':
                     if verbose:
-                        print '%d - ISH: %s - %s' % (ds['id'], gene['acronym'], gene['name']) 
+                        print '%d - HIS: %s' % (ds['id'], ds['treatments'][0]['name'])
                     
                     geneSingle['id'] = ds['id']
-                    geneSingle['type'] = 'ISH'
-                    geneSingle['name'] = gene['acronym']
-            
-            specimenMarkerSet.append(geneSingle)
+                    geneSingle['type'] = 'HIS'
+                    geneSingle['name'] = ds['treatments'][0]['name']
+                    
+                elif ds['treatments'][0]['tags'] == 'In Situ Hybridization histology':
+                    
+                    for gene in ds['genes']:
+                        if verbose:
+                            print '%d - ISH: %s - %s' % (ds['id'], gene['acronym'], gene['name']) 
+                        
+                        geneSingle['id'] = ds['id']
+                        geneSingle['type'] = 'ISH'
+                        geneSingle['name'] = gene['acronym']
+                
+                specimenMarkerSet.append(geneSingle)
 
-            if geneSingle['name'] in self.markersOfInterest:
-                specimenFilteredMarkerSet.append(geneSingle)
+                if geneSingle['name'] in self.markersOfInterest:
+                    specimenFilteredMarkerSet.append(geneSingle)
+
+                self.filteredMarkers = specimenFilteredMarkerSet
+                self.allMarkers = specimenMarkerSet
+        
+        else:
+
+            specimenMarkerSet = []
+            specimenFilteredMarkerSet = []
+
+            
+            # local specimen
+            for marker in self.localMarkers:
+                if marker['name'] in self.markersOfInterest:
+                    specimenFilteredMarkerSet.append(marker)
+
+                specimenMarkerSet.append(marker)
+        
 
             self.filteredMarkers = specimenFilteredMarkerSet
-            self.allMarkers = specimenMarkerSet
-            
-            
-            # what do i need to do next???
+            self.allMarkers = specimenMarkerSet            
+
+            if verbose == True:
+                print self.allMarkers
 
 
     def getSectionImages(self, onlyFiltered=True):
-        self.sectionImageList = []
-        
-        list_to_use = []
-        if onlyFiltered:
-            list_to_use = self.filteredMarkers
+        if self.remoteSpecimen:
+
+            self.sectionImageList = []
+            
+            list_to_use = []
+            if onlyFiltered and len(self.filteredMarkers) > 0:
+                list_to_use = self.filteredMarkers
+            else:
+                list_to_use = self.allMarkers
+
+            for sds in list_to_use:
+                import aibs
+                api = aibs.api()
+
+                imageList = api.getSectionImagesForID(sds['id'])
+                self.sectionImageList += imageList
+
+            return self.sectionImageList            
+
         else:
-            list_to_use = self.allMarkers
+            self.sectionImageList = []
+            
 
-        for sds in list_to_use:
-            import aibs
-            api = aibs.api()
+            list_to_use = []
+            if onlyFiltered and len(self.filteredMarkers) > 0:
+                list_to_use = self.filteredMarkers
+            else:
+                list_to_use = self.allMarkers
 
-            imageList = api.getSectionImagesForID(sds['id'])
-            self.sectionImageList += imageList
+            for sds in list_to_use:
+                imageList = self._getLocalImageList(sds['id'])
+                #imageList = api.getSectionImagesForID(sds['id'])
+                self.sectionImageList += imageList
 
-        return self.sectionImageList            
+            return self.sectionImageList            
+            
+    def _getLocalImageList(self, id_needed):
+
+        list_to_return = []
+        for possible_image in self.localImageList:
+
+            # already section images
+            if str(id_needed) in possible_image.tag:
+                list_to_return.append(possible_image)
+
+        return list_to_return
+            
+
 
 
     def getSortedImageList(self):

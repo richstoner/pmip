@@ -115,10 +115,36 @@ class Processing(object):
         # generate contrast image
         self._executeFIJIScript('REG-filter.ijm', dsImageList)                    
 
-        mvcmd = 'mv -v %s %s' %( os.path.join(self.dirs['raw'], '*-DSx4-c.jpg'), self.dirs['contrast'])
-        pipe = os.popen(mvcmd)
-        for p in pipe:
-            print p
+        
+
+        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-c.jpg'))
+        dscImageList.sort()
+        for dsc in dscImageList:
+
+            cmdstr = '/usr/bin/convert %s -resize 50%% %s' % (dsc, dsc.replace('raw', 'contrast'))
+            print cmdstr
+            pipe = os.popen(cmdstr)
+            for p in pipe:
+                print p
+
+            cmdstr = 'rm %s' % (dsc)
+            print cmdstr
+            pipe = os.popen(cmdstr)
+            for p in pipe:
+                print p
+
+
+
+        # # for n, dsc in enumerate(dscImageList):
+        # #     frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], n)
+        # #     if not os.path.exists(frameName):
+        # #         shutil.copy(dsc, frameName)
+
+
+        # mvcmd = 'mv -v %s %s' %( os.path.join(self.dirs['raw'], '*-DSx4-c.jpg'), self.dirs['contrast'])
+        # pipe = os.popen(mvcmd)
+        # for p in pipe:
+        #     print p
 
     def createContrastUsingSK(self):
 
@@ -151,13 +177,13 @@ class Processing(object):
                 elevation = skimage.filter.sobel(img_eq)
                 elevation = ndimage.gaussian_filter(elevation, 5)
 
-                img_to_write = np.zeros((1500,2000))
+                img_to_write = np.zeros((3000,3000))
                 y_offset = round((img_to_write.shape[0] - elevation.shape[0])/2)
                 x_offset = round((img_to_write.shape[1] - elevation.shape[1])/2)        
 
                 img_to_write[y_offset:elevation.shape[0]+y_offset,x_offset:elevation.shape[1] + x_offset] = elevation
 
-                outputname = os.path.join(self.dirs['contrast'], os.path.basename(file_to_use)).replace('.jpg', '-c.jpg')
+                outputname = os.path.join(self.dirs['contrast'], os.path.basename(file_to_use)).replace('.jpg', '-csk.jpg')
 
                 img_to_write = skimage.transform.pyramids.pyramid_reduce(img_to_write)
                 scipy.misc.imsave(outputname, img_to_write)
@@ -257,16 +283,31 @@ class Processing(object):
             img.generateDownSampleConversion(path, ds=downsample)
 
 
-    def createFrames(self):
+    def createFrames(self, userange=[]):
 
         self._printTitle('createFrames')
 
         import glob
+
         dscImageList = glob.glob(os.path.join(self.dirs['contrast'], '*-c.jpg'))
         dscImageList.sort()
 
         import shutil
 
+        # if len(userange) == 2:
+        #     cnt = 0
+        #     for dsc in dscImageList:
+        #         section_num = int(os.path.basename(dsc).split('-')[0])
+
+        #         if section_num >= userange[0] and section_num <= userange[1]:
+        #             frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], cnt)
+        #             cnt += 1
+
+        #             if not os.path.exists(frameName):
+        #                 shutil.copy(dsc, frameName)    
+
+        # else:
+            
         for n, dsc in enumerate(dscImageList):
             frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], n)
             if not os.path.exists(frameName):
@@ -277,7 +318,7 @@ class Processing(object):
 
 
 
-    def register(self):
+    def register(self, userange=[]):
 
         self._printTitle('register')
 
@@ -312,12 +353,15 @@ class Processing(object):
             htmlString += '<div>'
             basename = dsc.split('.')[0].replace('/mnt/', 'files/')
 
-            normal = '<img style="width: 200px; margin:3px;" src="%s.jpg"/>' % basename
-            contrast = '<img style="width: 200px; margin:3px;" src="%s-c.jpg"/>' % (basename.replace('raw', 'contrast'))
-            reg =   '<img style="width: 200px; margin:3px;" src="%s/register%04d.jpg"/>' % (basename.replace('raw', 'register_target'), n)
+            normal = '<img style="width: 150px; margin:3px;" src="%s.jpg"/>' % basename
+            contrast = '<img style="width: 150px; margin:3px;" src="%s-c.jpg"/>' % (basename.replace('raw', 'contrast'))
+            contrastSK = '<img style="width: 150px; margin:3px;" src="%s-csk.jpg"/>' % (basename.replace('raw', 'contrast'))
+            reg =   '<img style="width: 150px; margin:3px;" src="%s/register%04d.jpg"/>' % (basename.replace('raw', 'register_target'), n)
             
+            htmlString += '<h3>%s</h3>' % basename
             htmlString += normal
             htmlString += contrast
+            htmlString += contrastSK
             htmlString += reg
             htmlString += "</div>"
 
@@ -336,6 +380,19 @@ class Processing(object):
         ''' deletes all files downloaded to or copied to the raw directory '''
         import os
         os.popen('sudo rm -rvf %s/*' % self.dirs['raw'])
+
+    def clearContrastDirectory(self):
+        ''' deletes all files downloaded to or copied to the contrast directory '''
+        import os
+        os.popen('sudo rm -rvf %s/*' % self.dirs['contrast'])
+
+    def clearRegisterSourceDirectory(self):
+        ''' deletes all files downloaded to or copied to the regsource directory '''
+        import os
+        os.popen('sudo rm -rvf %s/*' % self.dirs['regsource'])
+
+
+
 
     def clearSubjectDirs(self):
         ''' deletes all files downloaded to or copied to the raw directory '''

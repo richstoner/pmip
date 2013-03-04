@@ -20,6 +20,6 @@ run("Enhance Contrast", "saturated=50 normalize equalize");
 // blur
 run("Gaussian Blur...", "sigma=1.5");
 setBackgroundColor(0,0,0);
-run("Canvas Size...", "width=2000 height=1500 position=Center zero"); 
+run("Canvas Size...", "width=2000 height=2000 position=Center zero"); 
 
 saveAs("jpg", output);
