@@ -324,8 +324,10 @@ class Processing(object):
 
         import glob
         files_to_use = glob.glob(self.dirs['regsource'] + '/*.jpg')
+
         
-        #print(len(files_to_use))
+        print(len(files_to_use))
+
         first_file = '%s/frame0000.jpg' % (self.dirs['regsource'])
         first_reg_file = '%s/register0000.jpg' % (self.dirs['regtarget'])
         cmdstr ='cp -v %s %s' % (first_file, first_reg_file)
@@ -334,8 +336,8 @@ class Processing(object):
             pass
          #   print(e)
             
-        cmdstr = '/home/ubuntu/ipynb/ pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 0' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
-        #print cmdstr
+        cmdstr = '/home/ubuntu/ipynb/pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 0' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
+        print cmdstr
         pipe = os.popen(cmdstr, 'r')
         for e in pipe:
             print(e)
