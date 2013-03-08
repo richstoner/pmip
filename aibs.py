@@ -58,10 +58,9 @@ class SectionImage(object):
         import os
         if self.remote == True:
             return
-                # cmdstr = '/usr/local/bin/kdu_expand -i %s -o %s.tif -reduce % -region "{%f, 0.0},{%f, 1.0}"' %  (tempkey['file_path'], fullimg, self.upperbound, self.lowerbound)
-    
+
         outputname = '%s/%s-DSx%d' % (path, self.tag, ds) #shortened tag 
-        print outputname
+        print outputname + '.jpg'
 
         if not os.path.exists(outputname+ '.jpg' ):
 
@@ -80,10 +79,8 @@ class SectionImage(object):
             p = os.popen(commandString)     
             print(p.read())
 
+        return outputname + '.jpg'
 
-
-        # else:
-        #     print 'exists : %s' % outputname
 
 
     def getImageDetailsFromJP2(self):

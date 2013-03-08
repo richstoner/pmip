@@ -18,16 +18,28 @@ class Processing(object):
 
         self.dirs = {}
         self.dirs['spec'] =  os.path.join(self.basedir, 'specimens', self.specimen)
-        self.dirs['raw'] =  os.path.join(self.dirs['spec'], 'raw')
-        self.dirs['contrast'] =  os.path.join(self.dirs['spec'], 'contrast')        
-        self.dirs['log'] = os.path.join(self.dirs['spec'], 'log')
-        self.dirs['video'] = os.path.join(self.dirs['spec'], 'video')
-        self.dirs['regsource'] = os.path.join(self.dirs['spec'], 'register_source')
-        self.dirs['regtarget'] = os.path.join(self.dirs['spec'], 'register_target')
-        self.dirs['points'] = os.path.join(self.dirs['spec'], 'points')
-        self.dirs['density'] = os.path.join(self.dirs['spec'], 'density')
-        self.dirs['stack'] = os.path.join(self.dirs['spec'], 'stackdir')
 
+        self.dirs['regraw'] =       os.path.join(self.dirs['spec'], 'register_raw')
+
+        self.dirs['regcontrast'] =  os.path.join(self.dirs['spec'], 'register_contrast')
+
+        self.dirs['regsource'] = os.path.join(self.dirs['spec'], 'register_source')
+
+        self.dirs['regtarget'] = os.path.join(self.dirs['spec'], 'register_target')
+
+        self.dirs['video'] = os.path.join(self.dirs['spec'], 'video')
+        
+        self.dirs['detect'] = os.path.join(self.dirs['spec'], 'detect_raw')
+
+        self.dirs['points'] = os.path.join(self.dirs['spec'], 'detect_points')
+
+        self.dirs['regpoints'] = os.path.join(self.dirs['spec'], 'register_points')
+
+        self.dirs['regdensity'] = os.path.join(self.dirs['spec'], 'register_density')        
+
+        self.dirs['regstack'] = os.path.join(self.dirs['spec'], 'register_stack')
+
+        self.processing_status = {}
 
     def _validateEnvironment(self):
 
@@ -60,9 +72,7 @@ class Processing(object):
 
         self._printTitle('initEnv')
 
-        if self._validateEnvironment():
-            print 'environment ready, continuing'
-        else:
+        if not self._validateEnvironment():
             print 'environment not complete, please check configuration'
             return
 
@@ -71,13 +81,15 @@ class Processing(object):
 
     #pe.generateFramesForImageList(e.getSortedImageList())
 
-    def collectRaw(self):
+    def collectImagesForRegistration(self):
         self._printTitle('collectRaw, downsample by 2^4')
-        self.collectRawGenerics(4, self.dirs['raw'])        
 
-    def collectLargeRaw(self):
+        self.processing_status['regraw'] = self.collectRawGenerics(4, self.dirs['regraw'])        
+
+    def collectImagesForCellDetection(self):
         self._printTitle('collectRaw, downsample by 2^1')
-        self.collectRawGenerics(1, self.dirs['points'])
+        
+        self.processing_status['detect'] = self.collectRawGenerics(1, self.dirs['detect'])
 
     def collectRawGenerics(self, DOWNSAMPLE, _dir):
 
@@ -89,62 +101,284 @@ class Processing(object):
             import aibs
             reload(aibs)
             api = aibs.api()
-
             api.getDSImagesFromListToPath(self.s.getSortedImageList(), _dir, downsample=DOWNSAMPLE)
-            # import glob
-            # print glob.glob(_dir + '/*DSx%d.jpg' % DOWNSAMPLE)
+
+
 
         else:
+            
+            # print '-> collecting images from local source'
+            return self.getDSImagesFromLocalToPath(self.s.getSortedImageList(), _dir, downsample=DOWNSAMPLE)
+        
 
-            print '-> collecting images from local source'
-            self.getDSImagesFromLocalToPath(self.s.getSortedImageList(), _dir, downsample=DOWNSAMPLE)
-            # import glob
-            # print glob.glob(_dir + '/*DSx%d.jpg' % DOWNSAMPLE)
 
+    def getDSImagesFromLocalToPath(self, imageList, path, downsample=5):
+
+        list_created = []
+
+        for img in imageList:
+            list_created.append(img.generateDownSampleConversion(path, ds=downsample))
+
+        return list_created
+
+            
 
 
     def createContrast(self):
 
+        import glob
+
+        list_created = []
+
         self._printTitle('createContrast')
 
-        # get list of ds images
-        import glob
-        dsImageList = glob.glob(self.dirs['raw'] + '/*-DSx4.jpg')
-        dsImageList.sort()
+        sourceList = self.processing_status['regraw']
+        targetList = glob.glob(os.path.join(self.dirs['regcontrast'], '*-c.jpg'))
 
+        dsImageList = []
+
+        for s in sourceList:
+
+            bFound = False
+
+            for t in targetList:
+                if os.path.basename(s).split('.')[0] in os.path.basename(t):
+                    bFound = True
+
+            if not bFound:
+                dsImageList.append(s)
+            else:
+                list_created.append(s)
+        
         # generate contrast image
-        self._executeFIJIScript('REG-filter.ijm', dsImageList)                    
+        # ISSUE: only generates contrast in reg-raw dir, requires additional step to copy, convert, and delete
+
+        self._executeFIJIScript('REG-filter.ijm', dsImageList)
 
         
-
-        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*-c.jpg'))
+        dscImageList = glob.glob(os.path.join(self.dirs['regraw'], '*-c.jpg'))
         dscImageList.sort()
         for dsc in dscImageList:
-
-            cmdstr = '/usr/bin/convert %s -resize 50%% %s' % (dsc, dsc.replace('raw', 'contrast'))
-            print cmdstr
+            cmdstr = '/usr/bin/convert %s -resize 50%% %s' % (dsc, dsc.replace('register_raw', 'register_contrast'))
             pipe = os.popen(cmdstr)
-            for p in pipe:
-                print p
-
             cmdstr = 'rm %s' % (dsc)
-            print cmdstr
             pipe = os.popen(cmdstr)
-            for p in pipe:
-                print p
+            
+            image_created = dsc.replace('register_raw', 'register_contrast')
+            list_created.append(image_created)
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regcontrast'], '*-c.jpg'))
+        dscImageList.sort()
+
+        self.processing_status['regcontrast'] = dscImageList
 
 
 
-        # # for n, dsc in enumerate(dscImageList):
-        # #     frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], n)
-        # #     if not os.path.exists(frameName):
-        # #         shutil.copy(dsc, frameName)
 
 
-        # mvcmd = 'mv -v %s %s' %( os.path.join(self.dirs['raw'], '*-DSx4-c.jpg'), self.dirs['contrast'])
-        # pipe = os.popen(mvcmd)
-        # for p in pipe:
-        #     print p
+    def createFrames(self, userange=[]):
+
+        self._printTitle('createFrames')
+
+        list_created = []        
+
+        import glob
+
+        # dscImageList = glob.glob(os.path.join(self.dirs['regcontrast'], '*-c.jpg'))
+        dscImageList = self.processing_status['regcontrast']
+        dscImageList.sort()
+
+        import shutil
+
+        for n, dsc in enumerate(dscImageList):
+            frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], n)
+            if not os.path.exists(frameName):
+                shutil.copy(dsc, frameName)
+
+            list_created.append(frameName)
+
+
+        self.processing_status['regsource'] = list_created
+
+
+
+
+
+    def register(self, userange=[]):
+
+        self._printTitle('register')
+
+        import glob
+        files_to_use = self.processing_status['regsource']
+
+        first_file = '%s/frame0000.jpg' % (self.dirs['regsource'])
+
+        first_reg_file = '%s/register0000.jpg' % (self.dirs['regtarget'])
+
+        cmdstr ='cp -v %s %s' % (first_file, first_reg_file)
+        pipe = os.popen(cmdstr, 'r')
+            
+        cmdstr = '/home/ubuntu/ipynb/pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 0' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
+        pipe = os.popen(cmdstr, 'r')        
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*.jpg'))
+        dscImageList.sort()
+
+        self.processing_status['regtarget'] = dscImageList
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*txt'))
+        dscImageList.sort()
+
+        self.processing_status['regxform'] = dscImageList      
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*mox'))
+        dscImageList.sort()
+
+        self.processing_status['regmox'] = dscImageList      
+
+
+
+
+
+
+
+    def runDetection(self):
+
+        import skimage
+        import numpy as np
+        import scipy as sp
+        from scipy import ndimage
+        from skimage import color, filter
+
+        from skimage import measure
+        from scipy import signal
+        import glob
+        from skimage.transform import pyramids
+
+        self._printTitle('detectPoints')
+
+        files_to_use = self.processing_status['detect']
+
+        for f in file_to_use:
+
+            f_a = os.path.join(self.dirs['points'], os.path.basename(f) + '.area')
+            f_c = os.path.join(self.dirs['points'], os.path.basename(f) + '.centroid')            
+
+            if not os.path.exists(f_a):
+
+                im = ndimage.imread(img)
+                imHSV = color.rgb2hsv(im)
+
+                imsat = imHSV[:,:,1]
+                satThreshold = np.zeros_like(imsat)
+                satThreshold[imsat > 0.05] = 1
+
+                fill_holes = ndimage.binary_fill_holes(satThreshold)
+                remove_noise = ndimage.binary_opening(fill_holes, structure=np.ones((3,3))).astype(np.int)
+                labeld_image, count = ndimage.label(remove_noise)
+                regions = measure.regionprops(labeld_image, properties=['Area', 'Centroid'])
+
+                a = []
+                c = []
+
+                for r in regions:
+                    a.append[r['Area']]
+                    c.append[r['Centroid']]
+
+
+                np.savetxt(f_a, a)
+                np.savetxt(f_c, c)
+
+
+        dscImageList = glob.glob(os.path.join(self.dirs['points'], '*.area'))
+        dscImageList.sort()
+
+        self.processing_status['regpointa'] = dscImageList      
+
+        dscImageList = glob.glob(os.path.join(self.dirs['points'], '*.centroid'))
+        dscImageList.sort()
+
+        self.processing_status['regpointc'] = dscImageList      
+
+
+
+
+
+
+
+    def savepointsForImage(img):
+        print(img)
+        im = ndimage.imread(img)
+        imHSV = color.rgb2hsv(im)
+
+        imsat = imHSV[:,:,1]
+        satThreshold = np.zeros_like(imsat)
+        satThreshold[imsat > 0.05] = 1
+
+        fill_holes = ndimage.binary_fill_holes(satThreshold)
+        remove_noise = ndimage.binary_opening(fill_holes, structure=np.ones((3,3))).astype(np.int)
+        
+        labeld_image, count = ndimage.label(remove_noise)
+        
+        regions = measure.regionprops(labeld_image, properties=['Area', 'Centroid'])
+
+        point_list = []
+        for reg in regions:
+            c = reg['Centroid']
+            point_to_convolve = (int(round(c[0])),int(round(c[1])))
+        #    print point_to_convolve
+            point_list.append(point_to_convolve)
+        
+        point_list_name = os.path.join(pe.dirs['stack'], os.path.basename(img).replace('jpg', 'txt'))
+        np.savetxt(point_list_name, point_list)
+        
+        softimg = np.zeros_like(satThreshold)
+        for i,n in enumerate(point_list):
+            softimg[n[0],n[1]] = 1
+
+        improc = ndimage.filters.gaussian_filter(softimg, 100, mode='constant')    
+        
+
+        fullsavename = os.path.join(pe.dirs['stack'], os.path.basename(img).replace('jpg', 'png'))
+        ds4savename = os.path.join(pe.dirs['stack'], os.path.basename(img).replace('jpg', 'png').replace('DSx1', 'DSx4'))
+        print fullsavename
+        print ds4savename
+        
+        img_to_write = skimage.transform.pyramids.pyramid_reduce(improc, downscale=4)
+        
+        sp.misc.imsave(fullsavename, improc)
+        sp.misc.imsave(ds4savename, img_to_write)        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def createContrastUsingSK(self):
 
@@ -194,21 +428,6 @@ class Processing(object):
         titlestr = '* ' + title
         print titlestr
         print '-'*80
-
-    
-
-
-    def extractPoints(self):
-        self._printTitle('extractPoints')
-
-        # get list of ds images
-        import glob 
-        dsImageList = glob.glob(os.path.join(self.dirs['points'], '*.jpg'))
-        dsImageList.sort()
-
-        #for n, ds in enumerate(dsImageList):
-        self._executeFijiExtract('ColorThresholdWithPointDetection.ijm', dsImageList)                    
-        #self._executeFIJIScript('REG-filter-red50.jim', dsImageList)   
 
 
 
@@ -276,72 +495,55 @@ class Processing(object):
              
 
 
-    def getDSImagesFromLocalToPath(self, imageList, path, downsample=5):
-
-        for img in imageList:
-            #print img
-            img.generateDownSampleConversion(path, ds=downsample)
 
 
-    def createFrames(self, userange=[]):
+    
 
-        self._printTitle('createFrames')
-
-        import glob
-
-        dscImageList = glob.glob(os.path.join(self.dirs['contrast'], '*-c.jpg'))
-        dscImageList.sort()
-
-        import shutil
-
-        # if len(userange) == 2:
-        #     cnt = 0
-        #     for dsc in dscImageList:
-        #         section_num = int(os.path.basename(dsc).split('-')[0])
-
-        #         if section_num >= userange[0] and section_num <= userange[1]:
-        #             frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], cnt)
-        #             cnt += 1
-
-        #             if not os.path.exists(frameName):
-        #                 shutil.copy(dsc, frameName)    
-
-        # else:
+    def registerPoints(self):
             
-        for n, dsc in enumerate(dscImageList):
-            frameName = '%s/frame%04d.jpg' % (self.dirs['regsource'], n)
-            if not os.path.exists(frameName):
-                shutil.copy(dsc, frameName)
+        working_list =  self.s.getSortedImageList()
 
-        # import glob
-        # print glob.glob(self.dirs['regsource'] + '/*.jpg')
+        action_list = []
 
+        for n, valid_img in enumerate(working_list):
+            point_source = '%s/%s-DSx1.txt' % (self.dirs['stack'],  valid_img.tag)
+            
+            if n > 0:
+                xform = '%s/register%04d.jpg.0.txt' % (self.dirs['regtarget'], n )
+                action_list.append([point_source, xform])
+                
+            else:
+                xform = None
+                action_list.append([point_source, xform])        
 
-
-    def register(self, userange=[]):
-
-        self._printTitle('register')
-
-        import glob
-        files_to_use = glob.glob(self.dirs['regsource'] + '/*.jpg')
-
+        #print action_list
         
-        print(len(files_to_use))
+        for a in action_list:
+            for b in a:
+                if type(b) != type(None):
+                    if os.path.exists(b):
+                        print 'found   : %s' % b
+                    else:
+                        print 'missing : %s' % b
 
-        first_file = '%s/frame0000.jpg' % (self.dirs['regsource'])
-        first_reg_file = '%s/register0000.jpg' % (self.dirs['regtarget'])
-        cmdstr ='cp -v %s %s' % (first_file, first_reg_file)
-        pipe = os.popen(cmdstr, 'r')
-        for e in pipe:
-            pass
-         #   print(e)
-            
-        cmdstr = '/home/ubuntu/ipynb/pmip/ImageReconstruction/bin/RigidBodyImageRegistration %s/frame%%04d.jpg %s/register%%04d.jpg %d 0' % (self.dirs['regsource'], self.dirs['regtarget'], len(files_to_use))
-        print cmdstr
-        pipe = os.popen(cmdstr, 'r')
-        for e in pipe:
-            print(e)
-            pass
+
+    def extractPoints(self):
+        self._printTitle('extractPoints')
+
+        # get list of ds images
+        import glob 
+        dsImageList = glob.glob(os.path.join(self.dirs['points'], '*.jpg'))
+        dsImageList.sort()
+
+        #for n, ds in enumerate(dsImageList):
+        self._executeFijiExtract('ColorThresholdWithPointDetection.ijm', dsImageList)                    
+        #self._executeFIJIScript('REG-filter-red50.jim', dsImageList)   
+
+
+
+
+
+    
 
     def generateSummaryTable(self):
         import glob
