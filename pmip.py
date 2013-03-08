@@ -259,14 +259,14 @@ class Processing(object):
 
         files_to_use = self.processing_status['detect']
 
-        for f in file_to_use:
-
+        for f in files_to_use:
+            print f
             f_a = os.path.join(self.dirs['points'], os.path.basename(f) + '.area')
             f_c = os.path.join(self.dirs['points'], os.path.basename(f) + '.centroid')            
 
             if not os.path.exists(f_a):
 
-                im = ndimage.imread(img)
+                im = ndimage.imread(f)
                 imHSV = color.rgb2hsv(im)
 
                 imsat = imHSV[:,:,1]
@@ -282,8 +282,8 @@ class Processing(object):
                 c = []
 
                 for r in regions:
-                    a.append[r['Area']]
-                    c.append[r['Centroid']]
+                    a.append(r['Area'])
+                    c.append(r['Centroid'])
 
 
                 np.savetxt(f_a, a)
