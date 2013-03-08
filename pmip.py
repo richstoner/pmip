@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
+import skimage
+import numpy as np
+import scipy as sp
+from scipy import ndimage
+from skimage import color, filter
+
+from skimage import measure
+from scipy import signal
+import glob
+from skimage.transform import pyramids
 import workerpool
 
 
@@ -244,16 +254,7 @@ class Processing(object):
 
     def runDetection(self):
 
-        import skimage
-        import numpy as np
-        import scipy as sp
-        from scipy import ndimage
-        from skimage import color, filter
 
-        from skimage import measure
-        from scipy import signal
-        import glob
-        from skimage.transform import pyramids
 
         self._printTitle('detectPoints')
 
@@ -289,6 +290,92 @@ class Processing(object):
                 np.savetxt(f_a, a)
                 np.savetxt(f_c, c)
 
+
+        dscImageList = glob.glob(os.path.join(self.dirs['points'], '*.area'))
+        dscImageList.sort()
+
+        self.processing_status['regpointa'] = dscImageList      
+
+        dscImageList = glob.glob(os.path.join(self.dirs['points'], '*.centroid'))
+        dscImageList.sort()
+
+        self.processing_status['regpointc'] = dscImageList      
+
+
+
+    class DetectionJob(workerpool.Job):
+
+
+
+        "test job"
+        def __init__(self, f, dir_to_use):
+            self.file_ = f # The url we'll need to download when the job runs
+
+        def run(self):
+
+            # import skimage
+            # import numpy as np
+            # import scipy as sp
+            # from scipy import ndimage
+            # from skimage import color, filter
+
+            # from skimage import measure
+            # from scipy import signal
+            # import glob
+            # import os
+            # from skimage.transform import pyramids
+
+            print self.file_
+
+            f_a = os.path.join(dir_to_use, os.path.basename(self.file_) + '.area')
+            # f_c = os.path.join(dir_to_use, os.path.basename(self.file_) + '.centroid')            
+
+            print f_a
+            # if not os.path.exists(f_a):
+
+                # print f_a
+
+                # im = ndimage.imread(self.file_)
+                # imHSV = color.rgb2hsv(im)
+
+                # imsat = imHSV[:,:,1]
+                # satThreshold = np.zeros_like(imsat)
+                # satThreshold[imsat > 0.05] = 1
+
+                # fill_holes = ndimage.binary_fill_holes(satThreshold)
+                # remove_noise = ndimage.binary_opening(fill_holes, structure=np.ones((3,3))).astype(np.int)
+                # labeld_image, count = ndimage.label(remove_noise)
+                # regions = measure.regionprops(labeld_image, properties=['Area', 'Centroid'])
+
+                # a = []
+                # c = []
+
+                # for r in regions:
+                #     a.append(r['Area'])
+                #     c.append(r['Centroid'])
+
+
+                # np.savetxt(f_a, a)
+                # np.savetxt(f_c, c)
+
+
+    def runDetectionThreaded(self):
+
+
+        self._printTitle('detectPoints')
+        
+        files_to_use = self.processing_status['detect']
+
+        pool = workerpool.WorkerPool(size=2)
+
+        for f in files_to_use:
+            job = self.DetectionJob(f, self.dirs['points'])
+            pool.put(job)
+
+        pool.shutdown()
+        pool.wait()
+
+        import glob
 
         dscImageList = glob.glob(os.path.join(self.dirs['points'], '*.area'))
         dscImageList.sort()
@@ -545,31 +632,31 @@ class Processing(object):
 
     
 
-    def generateSummaryTable(self):
-        import glob
+    # def generateSummaryTable(self):
+    #     import glob
 
-        dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*.jpg'))
-        dscImageList.sort()
+    #     dscImageList = glob.glob(os.path.join(self.dirs['raw'], '*.jpg'))
+    #     dscImageList.sort()
 
-        htmlString = ''
+    #     htmlString = ''
 
-        for n,dsc in enumerate(dscImageList):
-            htmlString += '<div>'
-            basename = dsc.split('.')[0].replace('/vol/', 'files/')
+    #     for n,dsc in enumerate(dscImageList):
+    #         htmlString += '<div>'
+    #         basename = dsc.split('.')[0].replace('/vol/', 'files/')
 
-            normal = '<img style="width: 150px; margin:3px;" src="%s.jpg"/>' % basename
-            contrast = '<img style="width: 150px; margin:3px;" src="%s-c.jpg"/>' % (basename.replace('raw', 'contrast'))
-            contrastSK = '<img style="width: 150px; margin:3px;" src="%s-csk.jpg"/>' % (basename.replace('raw', 'contrast'))
-            reg =   '<img style="width: 150px; margin:3px;" src="%s/register%04d.jpg"/>' % (basename.replace('raw', 'register_target'), n)
+    #         normal = '<img style="width: 150px; margin:3px;" src="%s.jpg"/>' % basename
+    #         contrast = '<img style="width: 150px; margin:3px;" src="%s-c.jpg"/>' % (basename.replace('raw', 'contrast'))
+    #         contrastSK = '<img style="width: 150px; margin:3px;" src="%s-csk.jpg"/>' % (basename.replace('raw', 'contrast'))
+    #         reg =   '<img style="width: 150px; margin:3px;" src="%s/register%04d.jpg"/>' % (basename.replace('raw', 'register_target'), n)
             
-            htmlString += '<h3>%s</h3>' % basename
-            htmlString += normal
-            htmlString += contrast
-            htmlString += contrastSK
-            htmlString += reg
-            htmlString += "</div>"
+    #         htmlString += '<h3>%s</h3>' % basename
+    #         htmlString += normal
+    #         htmlString += contrast
+    #         htmlString += contrastSK
+    #         htmlString += reg
+    #         htmlString += "</div>"
 
-        return htmlString      
+    #     return htmlString      
 
 
     def listSubjectDirectory(self):
