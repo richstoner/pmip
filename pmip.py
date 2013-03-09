@@ -98,8 +98,57 @@ class Processing(object):
 
     def collectImagesForCellDetection(self):
         self._printTitle('collectRaw, downsample by 2^1')
-        
         self.processing_status['detect'] = self.collectRawGenerics(1, self.dirs['detect'])
+
+
+
+    def collectImagesForGeneration(self):
+
+        import glob
+
+        dscImageList = glob.glob(os.path.join(self.dirs['points'], '*.area'))
+        dscImageList.sort()
+
+        self.processing_status['regpointa'] = dscImageList      
+
+        dscImageList = glob.glob(os.path.join(self.dirs['points'], '*.centroid'))
+        dscImageList.sort()
+
+        self.processing_status['regpointc'] = dscImageList      
+
+
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regsource'], '*'))
+        dscImageList.sort()
+
+        self.processing_status['regsource'] = dscImageList
+
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*.jpg'))
+        dscImageList.sort()
+
+        self.processing_status['regtarget'] = dscImageList
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*txt'))
+        dscImageList.sort()
+
+        self.processing_status['regxform'] = dscImageList      
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*mox'))
+        dscImageList.sort()
+
+        self.processing_status['regmox'] = dscImageList      
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regcontrast'], '*-c.jpg'))
+        dscImageList.sort()
+
+        self.processing_status['regcontrast'] = dscImageList
+
+
+
+
+
+
 
     def collectRawGenerics(self, DOWNSAMPLE, _dir):
 
@@ -246,6 +295,24 @@ class Processing(object):
 
         self.processing_status['regmox'] = dscImageList      
 
+
+
+    def collectRegisteredImages(self):
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*.jpg'))
+        dscImageList.sort()
+
+        self.processing_status['regtarget'] = dscImageList
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*txt'))
+        dscImageList.sort()
+
+        self.processing_status['regxform'] = dscImageList      
+
+        dscImageList = glob.glob(os.path.join(self.dirs['regtarget'], '*register*mox'))
+        dscImageList.sort()
+
+        self.processing_status['regmox'] = dscImageList      
 
 
 
