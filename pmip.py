@@ -117,6 +117,11 @@ class Processing(object):
         self.processing_status['regpointc'] = dscImageList      
 
 
+        dscImageList = glob.glob(os.path.join(self.dirs['regpoints'], '*.reg'))
+        dscImageList.sort()
+
+        self.processing_status['regpoints'] = dscImageList    
+
 
         dscImageList = glob.glob(os.path.join(self.dirs['regsource'], '*'))
         dscImageList.sort()
